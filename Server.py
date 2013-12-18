@@ -48,8 +48,6 @@ class Server:
                         client, addr = self.sock.accept()
                         print "Server accepted {}".format(client.getsockname())
                         client.setblocking(False)
-
-                        # add connection to list of inputs to monitor
                         inputs.append(client)
                     except socket.error as e:
                         if e.errno == 10054:
