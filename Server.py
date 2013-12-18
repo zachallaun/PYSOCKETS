@@ -38,8 +38,7 @@ class Server:
             inputs.append(self.sock)
 
         outputs = []
-        running = True
-        while running:
+        while True:
             readready, writeready, _ = select.select(inputs, outputs, [])
             for s in readready:
                 if s == self.sock:
