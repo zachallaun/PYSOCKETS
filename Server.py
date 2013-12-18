@@ -31,8 +31,12 @@ class Server:
         self.msgslen = {}                  # message lengths per client [len, sent, recvd]
         self.msgsrecv = {}                 # messages received from each client
 
-    def serv(self, inputs, msgs=None):  # inputs = [self.sock]
-        inputs = inputs
+    def serv(self, inputs=None, msgs=None):
+        if inputs is None:
+            inputs = [self.sock]
+        else:
+            inputs.append(self.sock)
+
         outputs = []
         running = True
         while running:
@@ -168,4 +172,4 @@ class Server:
 if __name__ == "__main__":
     print 'Echo Server starting'
     s = Server(SERVER_ADDR, SERVER_PORT)
-    s.serv([s.sock])
+    s.serv()
