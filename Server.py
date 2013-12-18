@@ -26,10 +26,10 @@ class Server:
         self.sock = listening_socket(addr, port)
         self.sock.listen(BACKLOG)
 
-        self.msgs = defaultdict(deque)     # complete messages per client
-        self.buffers = {}                  # partial messages per client
-        self.msgslen = {}                  # message lengths per client [len, sent, recvd]
-        self.msgsrecv = {}                 # messages received from each client
+        self.msgs = defaultdict(deque)         # complete messages per client
+        self.buffers = defaultdict(lambda: "") # partial messages per client
+        self.msgslen = defaultdict(lambda: -1) # message lengths per client [len, sent, recvd]
+        self.msgsrecv = defaultdict(lambda: 0) # messages received from each client
 
     def serv(self, inputs=None, msgs=None):
         if inputs is None:
@@ -47,16 +47,8 @@ class Server:
                         print "Waiting for client to connect"
                         client, addr = self.sock.accept()
                         print "Server accepted {}".format(client.getsockname())
-                        # set connection to non-blocking
                         client.setblocking(False)
-                        # give new connection a queue to store its messages
-                        self.msgs[client.fileno()].append("")
-                        # give new connection a buffer variable to store characters received
-                        self.buffers[client.fileno()] = ""
-                        # give new connection a key in dict to store # msgs expected
-                        self.msgslen[client.fileno()] = -1
-                        # give new connection a key in dict to store # msgs received
-                        self.msgsrecv[client.fileno()] = 0
+
                         # add connection to list of inputs to monitor
                         inputs.append(client)
                     except socket.error as e:
