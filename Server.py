@@ -4,22 +4,28 @@ from collections import defaultdict, deque
 
 # SERVER
 
-PORT = 8765
-SERVER_ADDR = ('localhost', PORT)
+SERVER_PORT = 8765
+SERVER_ADDR = 'localhost'
 MAX_BUFFER_SIZE = 1024
 BACKLOG = 5
 DELIMITER = "\0"
+
+def listening_socket(addr, port):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    # Allow reuse of local addresses (why is this not the default?)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.bind((addr, port))
+    return sock
 
 class Server:
     """
     A server that uses select to handle multiple clients at a time.
     """
 
-    def __init__(self, port):
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1) # Allow reuse of local addresses (why is this not the default?)
-        self.sock.bind(SERVER_ADDR)
-        self.sock.listen(BACKLOG)          # max number of connections waiting to be served
+    def __init__(self, addr, port):
+        self.sock = listening_socket(addr, port)
+        self.sock.listen(BACKLOG)
+
         self.MSGS = defaultdict(deque)     # complete messages per client
         self.buffers = {}                  # partial messages per client
         self.MSGSLEN = {}                  # message lengths per client [len, sent, recvd]
@@ -161,5 +167,5 @@ class Server:
 
 if __name__ == "__main__":
     print 'Echo Server starting'
-    s = Server(PORT)
+    s = Server(SERVER_ADDR, SERVER_PORT)
     s.serv([s.sock])
