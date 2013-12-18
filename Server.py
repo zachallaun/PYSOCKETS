@@ -26,10 +26,10 @@ class Server:
         self.sock = listening_socket(addr, port)
         self.sock.listen(BACKLOG)
 
-        self.MSGS = defaultdict(deque)     # complete messages per client
+        self.msgs = defaultdict(deque)     # complete messages per client
         self.buffers = {}                  # partial messages per client
-        self.MSGSLEN = {}                  # message lengths per client [len, sent, recvd]
-        self.MSGSRECV = {}                 # messages received from each client
+        self.msgslen = {}                  # message lengths per client [len, sent, recvd]
+        self.msgsrecv = {}                 # messages received from each client
 
     def serv(self, inputs, msgs=None):  # inputs = [self.sock]
         inputs = inputs
@@ -47,13 +47,13 @@ class Server:
                         # set connection to non-blocking
                         client.setblocking(False)
                         # give new connection a queue to store its messages
-                        self.MSGS[client.fileno()].append("")
+                        self.msgs[client.fileno()].append("")
                         # give new connection a buffer variable to store characters received
                         self.buffers[client.fileno()] = ""
                         # give new connection a key in dict to store # msgs expected
-                        self.MSGSLEN[client.fileno()] = -1
+                        self.msgslen[client.fileno()] = -1
                         # give new connection a key in dict to store # msgs received
-                        self.MSGSRECV[client.fileno()] = 0
+                        self.msgsrecv[client.fileno()] = 0
                         # add connection to list of inputs to monitor
                         inputs.append(client)
                     except socket.error as e:
@@ -68,10 +68,10 @@ class Server:
                         print "{} disconnected.".format(s.getsockname())
                         inputs.remove(s)
                         # remove its resources
-                        del self.MSGS[s.fileno()]
+                        del self.msgs[s.fileno()]
                         del self.buffers[s.fileno()]
-                        del self.MSGSLEN[s.fileno()]
-                        del self.MSGSRECV[s.fileno()]
+                        del self.msgslen[s.fileno()]
+                        del self.msgsrecv[s.fileno()]
                         if s in outputs:
                             # remove s from outputs (no need to respond to it anymore)
                             outputs.remove(s)
@@ -98,7 +98,7 @@ class Server:
 
     def write(self, client_sock):
         """write characters"""
-        dq = self.MSGS[client_sock.fileno()]
+        dq = self.msgs[client_sock.fileno()]
         if dq:
             nextMSG = dq.popleft()
             if nextMSG != '':
@@ -107,30 +107,30 @@ class Server:
                 if sent == 0:
                     raise RuntimeError("socket connection broken")
                 if sent < len(nextMSG):
-                    self.MSGS[client_sock.fileno()].appendleft(nextMSG[sent:])           # add part of msg not sent to front of deque
+                    self.msgs[client_sock.fileno()].appendleft(nextMSG[sent:])           # add part of msg not sent to front of deque
                 # check if done writing
-                # done reading and len(MSGS deque) == 0
-                if self.MSGSRECV[client_sock.fileno()] == self.MSGSLEN[client_sock.fileno()] + 1:
-                    return len(self.MSGS[client_sock.fileno()]) == 0
+                # done reading and len(msgs deque) == 0
+                if self.msgsrecv[client_sock.fileno()] == self.msgslen[client_sock.fileno()] + 1:
+                    return len(self.msgs[client_sock.fileno()]) == 0
                 else:
                     # server has not finished receiving all messages
                     return False
-        if self.MSGSRECV[client_sock.fileno()] == self.MSGSLEN[client_sock.fileno()] + 1:
-            return len(self.MSGS[client_sock.fileno()]) == 0
+        if self.msgsrecv[client_sock.fileno()] == self.msgslen[client_sock.fileno()] + 1:
+            return len(self.msgs[client_sock.fileno()]) == 0
         else:
             return False
 
     def readBufferMsg(self, client_sock):
         """"read characters from buffer"""
         buff = self.buffers[client_sock.fileno()]
-        msgs_recv = self.MSGSRECV[client_sock.fileno()]
+        msgs_recv = self.msgsrecv[client_sock.fileno()]
 
         next_msg, sep, msgs_rest = buff.partition(DELIMITER)
-        self.MSGS[client_sock.fileno()].append(next_msg + DELIMITER)        # store complete msg on deque
-        self.MSGSRECV[client_sock.fileno()] = msgs_recv + 1
+        self.msgs[client_sock.fileno()].append(next_msg + DELIMITER)        # store complete msg on deque
+        self.msgsrecv[client_sock.fileno()] = msgs_recv + 1
         self.buffers[client_sock.fileno()] = msgs_rest                  # store partial msg in buffer
 
-        #return self.MSGSRECV[client_sock.fileno()] == self.MSGSLEN[client_sock.fileno()] + 1
+        #return self.msgsrecv[client_sock.fileno()] == self.msgslen[client_sock.fileno()] + 1
 
 
     def read(self, client_sock):
@@ -138,22 +138,22 @@ class Server:
         read characters; build messages
         """
         buff = self.buffers[client_sock.fileno()]
-        msgs_recv = self.MSGSRECV[client_sock.fileno()]
+        msgs_recv = self.msgsrecv[client_sock.fileno()]
         chunk = client_sock.recv(MAX_BUFFER_SIZE)
         # check that client_sock is still connected
         if chunk:
             next_msg, sep, msgs_rest = chunk.partition(DELIMITER)
             if sep == DELIMITER:
                 # store number of messages from this client, if not yet stored
-                if self.MSGSLEN[client_sock.fileno()] < 0:
-                    self.MSGSLEN[client_sock.fileno()] = int(buff + next_msg)               # set total number of messages to follow
-                    self.MSGS[client_sock.fileno()].append(buff + next_msg + DELIMITER)     # store complete msg
+                if self.msgslen[client_sock.fileno()] < 0:
+                    self.msgslen[client_sock.fileno()] = int(buff + next_msg)               # set total number of messages to follow
+                    self.msgs[client_sock.fileno()].append(buff + next_msg + DELIMITER)     # store complete msg
                     self.buffers[client_sock.fileno()] = msgs_rest
-                    self.MSGSRECV[client_sock.fileno()] = msgs_recv + 1                     # first message received
+                    self.msgsrecv[client_sock.fileno()] = msgs_recv + 1                     # first message received
                 else:
-                    self.MSGS[client_sock.fileno()].append(buff + next_msg + DELIMITER)     # store complete msg
+                    self.msgs[client_sock.fileno()].append(buff + next_msg + DELIMITER)     # store complete msg
                     self.buffers[client_sock.fileno()] = msgs_rest                          # store partial msg
-                    self.MSGSRECV[client_sock.fileno()] = msgs_recv + 1                     # incr messages received
+                    self.msgsrecv[client_sock.fileno()] = msgs_recv + 1                     # incr messages received
                 while DELIMITER in self.buffers[client_sock.fileno()]:
                     self.readBufferMsg(client_sock)
             else:
@@ -161,7 +161,7 @@ class Server:
                 # concatenate partial messages
                 self.buffers[client_sock.fileno()] = buff + next_msg
 
-            return self.MSGSRECV[client_sock.fileno()] == self.MSGSLEN[client_sock.fileno()] + 1
+            return self.msgsrecv[client_sock.fileno()] == self.msgslen[client_sock.fileno()] + 1
 
 ##################################################################################
 
