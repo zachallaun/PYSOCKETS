@@ -20,7 +20,7 @@ def listening_socket(addr, port):
 def client():
     return {'msgs': deque(),
             'buffer': '',
-            'msgslen': -1,
+            'msgslen': None,
             'msgsrecv': 0}
 
 class Server:
@@ -122,45 +122,34 @@ class Server:
     def readBufferMsg(self, client_sock):
         """"read characters from buffer"""
         client = self.clients[client_sock.fileno()]
-        buff = client['buffer']
-        msgs_recv = client['msgsrecv']
 
-        next_msg, sep, msgs_rest = buff.partition(DELIMITER)
-        client['msgs'].append(next_msg + DELIMITER)        # store complete msg on deque
-        client['msgsrecv'] = msgs_recv + 1
-        client['buffer'] = msgs_rest                  # store partial msg in buffer
-
-        #return self.msgsrecv[client_sock.fileno()] == self.msgslen[client_sock.fileno()] + 1
-
+        next_msg, sep, msgs_rest = client['buffer'].partition(DELIMITER)
+        client['msgs'].append(next_msg + DELIMITER)
+        client['msgsrecv'] += 1
+        client['buffer'] = msgs_rest
 
     def read(self, client_sock):
         """
         read characters; build messages
         """
         client = self.clients[client_sock.fileno()]
-        buff = client['buffer']
-        msgs_recv = client['msgsrecv']
         chunk = client_sock.recv(MAX_BUFFER_SIZE)
         # check that client_sock is still connected
         if chunk:
             next_msg, sep, msgs_rest = chunk.partition(DELIMITER)
             if sep == DELIMITER:
                 # store number of messages from this client, if not yet stored
-                if client['msgslen'] < 0:
-                    client['msgslen'] = int(buff + next_msg)               # set total number of messages to follow
-                    client['msgs'].append(buff + next_msg + DELIMITER)     # store complete msg
-                    client['buffer'] = msgs_rest
-                    client['msgsrecv'] = msgs_recv + 1                     # first message received
-                else:
-                    client['msgs'].append(buff + next_msg + DELIMITER)     # store complete msg
-                    client['buffer'] = msgs_rest                          # store partial msg
-                    client['msgsrecv'] = msgs_recv + 1                     # incr messages received
+                if client['msgslen'] is None:
+                    client['msgslen'] = int(client['buffer'] + next_msg)
+                client['msgs'].append(client['buffer'] + next_msg + DELIMITER)
+                client['buffer'] = msgs_rest
+                client['msgsrecv'] += 1
                 while DELIMITER in client['buffer']:
                     self.readBufferMsg(client_sock)
             else:
                 # delimiter not found
                 # concatenate partial messages
-                client['buffer'] = buff + next_msg
+                client['buffer'] += next_msg
 
             return client['msgsrecv'] == client['msgslen'] + 1
 
