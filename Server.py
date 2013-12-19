@@ -23,17 +23,47 @@ def client():
             'msgslen': None,
             'msgsrecv': 0}
 
+def EchoClient(object):
+    def __init__(self):
+        self.buffer = ""
+        self.msgs = deque()
+        self.msgslen = None
+        self.msgsrecv = 0
+
+    def read(self, s):
+        """
+        Read from socket s, store data in buffer and complete
+        messages in msgs
+        """
+        self.buffer += s.recv(MAX_BUFFER_SIZE)
+        msgs = self.buffer.split(DELIMITER)
+        for msg in msgs[:-1]:
+            if not self.msgslen:
+                self.msgslen = int(msg)
+            self.msgs.append(msg + DELIMITER)
+        self.buffer = msgs[-1]
+
+    def write(self, s):
+        """
+        Write all complete messages to socket s.
+        """
+        pass
+
+
+
 class Server:
     """
     A server that uses select to handle multiple clients at a time.
     """
 
-    def __init__(self, addr, port):
+    def __init__(self, addr, port, ClientCtor):
+        self.ClientCtor = ClientCtor
+
         self.sock = listening_socket(addr, port)
         self.sock.listen(BACKLOG)
 
-        # dict of socket.fileno() to client dictionaries
-        self.clients = defaultdict(client)
+        # dict of socket.fileno() to ClientCtor()
+        self.clients = {}
 
     def serv(self, inputs=None, msgs=None):
         if inputs is None:
@@ -48,17 +78,17 @@ class Server:
                 if s == self.sock:
                     # handle the server socket
                     try:
-                        print "Waiting for client to connect"
                         client, addr = self.sock.accept()
-                        print "Server accepted {}".format(client.getsockname())
                         client.setblocking(False)
                         inputs.append(client)
+                        self.clients[client.fileno()] = self.ClientCtor(client)
                     except socket.error as e:
                         if e.errno == 10054:
                             print e
                         continue
                 else:
-                    # read from an already established client socket
+                    self.clients[client.fileno()].onRead()
+
                     isDone = self.read(s)
                     if isDone is None: # disconnected
                         print "{} disconnected.".format(s.getsockname())
@@ -98,7 +128,8 @@ class Server:
             sent = client_sock.send(nextMSG)        # nextMSG is top element of dq (chars up to and including DELIMITER)
             print "Server sent {} bytes to {}".format(sent, client_sock.fileno())
             if sent == 0:
-                raise RuntimeError("socket connection broken")
+                print "socket connection broken"
+                return
             if sent < len(nextMSG):
                 client['msgs'].appendleft(nextMSG[sent:]) # add part of msg not sent to front of deque
             # check if done writing
