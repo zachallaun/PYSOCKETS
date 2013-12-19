@@ -100,20 +100,19 @@ class Server:
         dq = client['msgs']
         if dq:
             nextMSG = dq.popleft()
-            if nextMSG != '':
-                sent = client_sock.send(nextMSG)        # nextMSG is top element of dq (chars up to and including DELIMITER)
-                print "Server sent {} bytes to {}".format(sent, client_sock.fileno())
-                if sent == 0:
-                    raise RuntimeError("socket connection broken")
-                if sent < len(nextMSG):
-                    client['msgs'].appendleft(nextMSG[sent:]) # add part of msg not sent to front of deque
-                # check if done writing
-                # done reading and len(msgs deque) == 0
-                if client['msgsrecv'] == client['msgslen'] + 1:
-                    return len(client['msgs']) == 0
-                else:
-                    # server has not finished receiving all messages
-                    return False
+            sent = client_sock.send(nextMSG)        # nextMSG is top element of dq (chars up to and including DELIMITER)
+            print "Server sent {} bytes to {}".format(sent, client_sock.fileno())
+            if sent == 0:
+                raise RuntimeError("socket connection broken")
+            if sent < len(nextMSG):
+                client['msgs'].appendleft(nextMSG[sent:]) # add part of msg not sent to front of deque
+            # check if done writing
+            # done reading and len(msgs deque) == 0
+            if client['msgsrecv'] == client['msgslen'] + 1:
+                return len(client['msgs']) == 0
+            else:
+                # server has not finished receiving all messages
+                return False
         if client['msgsrecv'] == client['msgslen'] + 1:
             return len(client['msgs']) == 0
         else:
