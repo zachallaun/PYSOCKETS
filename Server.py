@@ -130,7 +130,12 @@ class Server:
 
     def read(self, client_sock):
         """
-        read characters; build messages
+        Read from client_sock, parsing and storing messages in related client.
+
+        Returns:
+          True  -> all messages received from client
+          False -> more messages to come
+          None  -> client disconnected
         """
         client = self.clients[client_sock.fileno()]
         chunk = client_sock.recv(MAX_BUFFER_SIZE)
