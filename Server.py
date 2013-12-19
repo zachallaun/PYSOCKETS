@@ -35,11 +35,6 @@ class Server:
         # dict of socket.fileno() to client dictionaries
         self.clients = defaultdict(client)
 
-        # self.msgs = defaultdict(deque)         # complete messages per client
-        # self.buffers = defaultdict(lambda: "") # partial messages per client
-        # self.msgslen = defaultdict(lambda: -1) # message lengths per client [len, sent, recvd]
-        # self.msgsrecv = defaultdict(lambda: 0) # messages received from each client
-
     def serv(self, inputs=None, msgs=None):
         if inputs is None:
             inputs = [self.sock]
